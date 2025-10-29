@@ -1,0 +1,22 @@
+using Notification.Infrastructure.Models;
+
+using Microsoft.Extensions.Configuration;
+
+using Notification.Application;
+using Notification.Infrastructure;
+using Notification.Infrastructure.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+// Add services to the container.
+builder.Services.AddGrpc();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+app.MapGrpcService<NotificationService>();
+app.MapGet("/", () => "Notification gRPC service");
+app.Run();
