@@ -1,12 +1,14 @@
 ﻿using Grpc.Common.Notification;
-using Notification.Application.Contracts;
-using Notification.Application.Features.Registration.SendRegistrationEmail;
-
 using Grpc.Core;
 
 using MediatR;
 
 using Microsoft.Extensions.Logging;
+
+using Notification.Application.Contracts;
+using Notification.Application.Features.Registration.SendRegistrationEmail;
+
+using System.Collections.Concurrent;
 
 namespace Notification.Infrastructure.Services;
 
@@ -38,16 +40,36 @@ public class NotificationService : Grpc.Common.Notification.NotificationService.
             Message = response.Message
         };
     }
+    private static readonly ConcurrentDictionary<string, IServerStreamWriter<FeedNotificationMessage>> _subscribers = new();
 
-    public override Task<NotificationResponse> SendFeedNotification(FeedNotificationRequest request, ServerCallContext context)
+    public override async Task<Empty> SendFeedNotification(FeedNotificationMessage request, ServerCallContext context)
     {
         ArgumentNullException.ThrowIfNull(request);
-        //_logger.LogInformation($"[Notification] {request.Type} feedId={request.FeedId} from={request.FromUserId} to={request.ToUserId}");
-
-        return Task.FromResult(new NotificationResponse
+        if (_subscribers.TryGetValue(request.ToUserId, out var stream))
         {
-            Success = true,
-            Message = $"Feed notification ({request.Type}) sent."
-        });
+            await stream.WriteAsync(request);
+        }
+
+        return new Empty();
+    }
+
+    public override async Task FeedSubscribe(FeedSubscribeRequest request, IServerStreamWriter<FeedNotificationMessage> responseStream, ServerCallContext context)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(context);
+        _subscribers[request.UserId] = responseStream;
+
+        try
+        {
+            // Addig él, amíg a kliens le nem csatlakozik
+            while (!context.CancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(1000);
+            }
+        }
+        finally
+        {
+            _subscribers.TryRemove(request.UserId, out _);
+        }
     }
 }
