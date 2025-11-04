@@ -31,7 +31,7 @@ public class EmailService : IEmailService
         ).Result;
 
 
-       
+
     }
 
     public async Task SendEmailAsync(string to, string subject, string body)

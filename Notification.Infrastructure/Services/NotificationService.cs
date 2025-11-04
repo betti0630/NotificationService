@@ -6,9 +6,11 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 
 using Notification.Application.Contracts;
+using Notification.Application.Features.FeedNotification;
 using Notification.Application.Features.Registration.SendRegistrationEmail;
 
 using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace Notification.Infrastructure.Services;
 
@@ -45,6 +47,13 @@ public class NotificationService : Grpc.Common.Notification.NotificationService.
     public override async Task<Empty> SendFeedNotification(FeedNotificationMessage request, ServerCallContext context)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var appRequest = new FeedNotificationAppRequest()
+        {
+            FromUserId = int.Parse(request.FromUser, CultureInfo.InvariantCulture ),
+            ToUserId = int.Parse(request.ToUserId, CultureInfo.InvariantCulture),
+            Message = request.Message,
+        };
+        var resposne = _mediator.Send(appRequest);
         if (_subscribers.TryGetValue(request.ToUserId, out var stream))
         {
             await stream.WriteAsync(request);
