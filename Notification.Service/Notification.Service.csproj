@@ -12,6 +12,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="NSwag.AspNetCore" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,5 +21,8 @@
     <ProjectReference Include="..\Notification.Infrastructure\Notification.Infrastructure.csproj" />
     <ProjectReference Include="..\Notification.Persistence\Notification.Persistence.csproj" />
   </ItemGroup>
-    
+
+    <PropertyGroup>
+        <NoWarn>CA1515</NoWarn>
+    </PropertyGroup>
 </Project>
