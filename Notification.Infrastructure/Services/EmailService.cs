@@ -8,34 +8,32 @@ using MimeKit;
 
 using Notification.Application.Contracts;
 
-using System.Net;
-
 namespace Notification.Infrastructure.Services;
 
 public class EmailService : IEmailService
 {
     private readonly string _fromEmail;
-    private readonly UserCredential? _credential;
+    private readonly string _credentialPath;
+    private readonly string _tokenPath;
 
     public EmailService(string credentialsPath, string fromEmail, string tokenPath = "token.json")
     {
         _fromEmail = fromEmail;
-
-        using var stream = new FileStream(credentialsPath, FileMode.Open, FileAccess.Read);
-        _credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-            GoogleClientSecrets.FromStream(stream).Secrets,
-            new[] { GmailService.Scope.GmailSend },
-            "user",
-            CancellationToken.None,
-            new FileDataStore(tokenPath, true)
-        ).Result;
-
-
-
+        _credentialPath = credentialsPath;
+        _tokenPath = tokenPath;
     }
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
+        using var stream = new FileStream(_credentialPath, FileMode.Open, FileAccess.Read);
+        var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
+            GoogleClientSecrets.FromStream(stream).Secrets,
+            new[] { GmailService.Scope.GmailSend },
+            "user",
+            CancellationToken.None,
+            new FileDataStore(_tokenPath, true)
+        );
+
         using var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(_fromEmail));
         message.To.Add(MailboxAddress.Parse(to));
@@ -52,7 +50,7 @@ public class EmailService : IEmailService
         var gmailMessage = new Message { Raw = base64UrlEncodedEmail };
         using var gmailService = new GmailService(new BaseClientService.Initializer
         {
-            HttpClientInitializer = _credential,
+            HttpClientInitializer = credential,
             ApplicationName = "NotificationService",
         });
         await gmailService.Users.Messages.Send(gmailMessage, "me").ExecuteAsync();

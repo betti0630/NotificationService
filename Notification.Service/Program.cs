@@ -1,14 +1,24 @@
-using Notification.Infrastructure.Models;
-
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 
 using Notification.Application;
 using Notification.Infrastructure;
+using Notification.Infrastructure.Models;
 using Notification.Infrastructure.Services;
 using Notification.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsProduction() || builder.Environment.IsEnvironment("Docker"))
+{
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        // Az 8080-as portot a gRPC fogja használni HTTP/2-n
+        options.ListenAnyIP(8080, o => o.Protocols = HttpProtocols.Http2);
 
+        // Az 8081-es porton a REST API (Swagger, controller, health, stb.)
+        options.ListenAnyIP(8081, o => o.Protocols = HttpProtocols.Http1AndHttp2);
+    });
+}
 builder.Services.AddApplicationServices();
 builder.Services.AddPersistenceServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -43,8 +53,6 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 
 var app = builder.Build();
 
-app.Services.RunDatabaseMigrations();
-
 // Configure the HTTP request pipeline.
 app.UseCors();
 app.UseGrpcWeb();
@@ -69,5 +77,9 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
         options.Path = "/redoc";
     });
 }
-app.MapGet("/", () => "Notification gRPC service");
+app.MapGet("/", () => Results.Redirect("/swagger"));
+
+
+app.Services.RunDatabaseMigrations();
+
 app.Run();
